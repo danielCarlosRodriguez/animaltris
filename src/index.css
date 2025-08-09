@@ -1,0 +1,5 @@
+@import "tailwindcss";
+
+.font-brand {
+  font-family: 'Fredoka One', cursive;
+}
