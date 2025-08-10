@@ -5,8 +5,7 @@ const SelectionButton = ({ item, onClick, isSelected }) => (
     className={`
       relative w-24 h-24 md:w-36 md:h-36 rounded-xl flex flex-col items-center justify-center
       bg-white shadow-md cursor-pointer transition-transform duration-200 hover:scale-105
-      focus:outline-none
-      ${isSelected ? "ring-4 ring-violet-700" : ""}
+      focus:outline-none ${isSelected ? "ring-4 ring-violet-700" : ""}
     `}
   >
     <span className="text-4xl md:text-5xl">{item.emoji}</span>
@@ -27,7 +26,7 @@ export default function OptionSection({
       <h2 className="text-xl sm:text-2xl font-bold text-white text-center mb-4">
         {title}
       </h2>
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 sm:gap-4 justify-items-center">
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-x-6 gap-y-8 sm:gap-x-8 sm:gap-y-10 justify-items-center">
         {options.map((item) => (
           <SelectionButton
             key={item.name}

@@ -1,10 +1,10 @@
 // src/App.jsx
 import { useEffect, useState } from "react";
-import Logo from "./components/Logo";
-import HeadSelector from "./components/HeadSelector";
-import BodySelector from "./components/BodySelector";
-import AccessorySelector from "./components/AccessorySelector";
-import PlaceSelector from "./components/PlaceSelector";
+import Logo from "./Logo";
+import HeadSelector from "./HeadSelector";
+import BodySelector from "./BodySelector";
+import AccessorySelector from "./AccessorySelector";
+import PlaceSelector from "./PlaceSelector";
 import { optionsData } from "./data/optionsData";
 
 // arriba de todo, antes del componente

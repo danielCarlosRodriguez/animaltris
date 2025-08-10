@@ -1,0 +1,71 @@
+/* src/components/ant-colony-mobile/styles-mobile.css */
+.ant-mobile-wrap {
+    background: #0a0f1a;
+    color: #e8eef9;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    min-height: 100vh;
+    padding: 10px;
+  }
+  
+  .am-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .am-topbar h2 { margin: 0; font-size: 18px; }
+  .am-actions { display: flex; gap: 6px; }
+  .am-actions button {
+    padding: 8px 10px;
+    border: 0; border-radius: 10px;
+    font-weight: 700;
+    background: #4ca1ff; color: #061224;
+  }
+  
+  .am-canvas-wrap {
+    width: 100%;
+    height: 62vh;          /* alto pensado para mobile */
+    border: 1px solid #162033;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .am-canvas { width: 100%; height: 100%; display: block; background: #0b1020; }
+  
+  .am-toolbar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .am-toolbar button {
+    padding: 10px 8px;
+    font-weight: 600;
+    border-radius: 10px;
+    border: 1px solid #24314a;
+    background: #0d1424; color: #dbe7ff;
+  }
+  .am-toolbar button.active {
+    background: #193055;
+    border-color: #355c9b;
+  }
+  
+  .am-controls {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    border: 1px solid #162033;
+    border-radius: 12px;
+    padding: 10px;
+    background: #0d1424;
+  }
+  .am-control label {
+    display: flex; justify-content: space-between;
+    font-size: 13px; color: #a9bad6; margin-bottom: 2px;
+  }
+  .am-control input[type="range"] { width: 100%; }
+  .am-toggle { display: flex; align-items: center; justify-content: space-between; }
+  
+  .am-hint { color: #94a7c6; font-size: 13px; margin-top: 8px; }
+  

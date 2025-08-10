@@ -1,0 +1,51 @@
+/* src/components/ant-colony/styles.css */
+.ant-colony-wrap {
+  color: #e8eef9;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  padding: 12px;
+  background: #0a0f1a;
+  min-height: 100%;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.topbar h2 { margin: 0; font-weight: 700; }
+.topbar .actions button {
+  background: #4ca1ff;
+  color: #061224;
+  border: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.colony-grid {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 12px;
+}
+
+.canvas-wrap { border: 1px solid #162033; border-radius: 12px; overflow: hidden; }
+.ant-canvas { display: block; width: 100%; height: 600px; background: #0b1020; }
+
+.controls {
+  border: 1px solid #162033;
+  border-radius: 12px;
+  padding: 12px;
+  background: #0d1424;
+}
+.controls h3 { margin: 0 0 10px 0; }
+.control, .control-row { margin-bottom: 10px; }
+.control label {
+  display: flex; justify-content: space-between; font-size: 13px; color: #a9bad6;
+}
+.control input[type="range"] { width: 100%; }
+.control-row { display: flex; align-items: center; justify-content: space-between; }
+
+.hint { color: #94a7c6; font-size: 13px; margin-top: 8px; }
