@@ -7,6 +7,19 @@ import AccessorySelector from "./components/AccessorySelector";
 import PlaceSelector from "./components/PlaceSelector";
 import { optionsData } from "./data/optionsData";
 
+// arriba de todo, antes del componente
+const MODELS = (() => {
+  const fromEnv = import.meta.env.VITE_HF_MODELS?.split(",").map(s => s.trim()).filter(Boolean);
+  const ids = fromEnv?.length ? fromEnv : [
+    "black-forest-labs/FLUX.1-schnell",
+    "stabilityai/stable-diffusion-xl-base-1.0",
+
+  ];
+  // etiqueta linda
+  return ids.map(id => ({ id, label: id.split("/")[1] || id }));
+})();
+
+
 export default function App() {
   // --- Estado principal ---
   const [selections, setSelections] = useState({
@@ -15,9 +28,12 @@ export default function App() {
     accessory: null,
     place: null,
   });
-  const [generatedImage, setGeneratedImage] = useState(null);
+
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [globalError, setGlobalError] = useState(null);
+
+  // resultados por modelo: { modelId, label, status, url?, error?, ms? }
+  const [results, setResults] = useState([]);
 
   // --- Helpers ---
   const handleSelect = (category, value) => {
@@ -26,8 +42,8 @@ export default function App() {
 
   const handleReset = () => {
     setSelections({ head: null, body: null, accessory: null, place: null });
-    setGeneratedImage(null);
-    setError(null);
+    setResults([]);
+    setGlobalError(null);
     setIsLoading(false);
   };
 
@@ -37,36 +53,14 @@ export default function App() {
 
   // --- Hugging Face (frontend-only) ---
   const HF_TOKEN = import.meta.env.VITE_HF_TOKEN;
-  const HF_MODEL =
-    import.meta.env.VITE_HF_MODEL || "black-forest-labs/FLUX.1-schnell";
-  const HF_URL = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
 
-  const handleGenerateImage = async () => {
-    setError(null);
-    setGeneratedImage(null);
+  // Helper: una llamada a HF para un modelo concreto (con reintentos 503)
+  const generateWithModel = async (modelId, prompt, signal) => {
+    const url = `https://api-inference.huggingface.co/models/${modelId}`;
 
-    // Validaciones
-    if (
-      !selections.head ||
-      !selections.body ||
-      !selections.accessory ||
-      !selections.place
-    ) {
-      setError("Faltan opciones. Elegí cabeza, cuerpo, accesorio y lugar 🙂");
-      return;
-    }
-    if (!HF_TOKEN) {
-      setError("No se encontró VITE_HF_TOKEN. Configurá tu token en el .env.");
-      return;
-    }
-
-    setIsLoading(true);
-
-    const prompt = `Crear una imagen de un animal fantástico con cabeza de ${selections.head} y cuerpo de ${selections.body}, usando ${selections.accessory}. El animal está en ${selections.place}. Estilo de dibujos animados 3D como Disney Pixar, colores muy vibrantes, adorable, para niños, fondo detallado.`;
-
-    // Reintentos para 503 (modelo "cold")
-    const callHF = async (signal) => {
-      const res = await fetch(HF_URL, {
+    // backoff simple: 2.5s cada vez si 503
+    const callOnce = async () => {
+      const res = await fetch(url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${HF_TOKEN}`,
@@ -79,44 +73,130 @@ export default function App() {
 
       if (res.status === 503) {
         await new Promise((r) => setTimeout(r, 2500));
-        return callHF(signal);
+        return callOnce(); // reintenta
       }
 
       if (!res.ok) {
         const text = await res.text();
         throw new Error(text || `HTTP ${res.status}`);
       }
+
+      if (res.status === 404) {
+        throw new Error(
+          "404: Este repo no expone Inference API (usa Diffusers/Spaces)."
+        );
+      }
+      if (res.status === 400) {
+        throw new Error(
+          "400: Solicitud inválida o acceso requerido (gated). Acepta los términos del modelo."
+        );
+      }
       return res.blob();
     };
 
+    const t0 = performance.now();
+    const blob = await callOnce();
+    const ms = Math.round(performance.now() - t0);
+    const urlObj = URL.createObjectURL(blob);
+    return { url: urlObj, ms };
+  };
+
+  const handleGenerateImage = async () => {
+    setGlobalError(null);
+    setResults([]);
+
+    // Validaciones
+    if (
+      !selections.head ||
+      !selections.body ||
+      !selections.accessory ||
+      !selections.place
+    ) {
+      setGlobalError(
+        "Faltan opciones. Elegí cabeza, cuerpo, accesorio y lugar 🙂"
+      );
+      return;
+    }
+    if (!HF_TOKEN) {
+      setGlobalError(
+        "No se encontró VITE_HF_TOKEN. Configurá tu token en el .env."
+      );
+      return;
+    }
+
+    setIsLoading(true);
+
+    // Prompt único para comparar entre modelos
+    const prompt = `Full body view, centered. Hybrid animal: ${selections.head} head + ${selections.body} body, clearly fused. ${selections.body} body must be obvious (scales, fins, tail, texture), no ${selections.head} torso. Wearing ${selections.accessory}. Scene: ${selections.place}. Cute 3D cartoon (Pixar-like), vibrant colors, detailed background.`;
+
+    console.log("Prompt generado:", prompt);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 90000); // 90s para múltiples modelos
+
     try {
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 60000); // 60s
+      // Inicializa tarjetas en "loading"
+      setResults(
+        MODELS.map((m) => ({
+          modelId: m.id,
+          label: m.label,
+          status: "loading",
+        }))
+      );
 
-      const blob = await callHF(controller.signal);
-      clearTimeout(t);
+      const promises = MODELS.map(async (m) => {
+        try {
+          const { url, ms } = await generateWithModel(
+            m.id,
+            prompt,
+            controller.signal
+          );
+          return {
+            modelId: m.id,
+            label: m.label,
+            status: "done",
+            url,
+            ms,
+          };
+        } catch (err) {
+          const msg = (err?.message || "Error").slice(0, 180);
+          return {
+            modelId: m.id,
+            label: m.label,
+            status: "error",
+            error: msg,
+          };
+        }
+      });
 
-      const url = URL.createObjectURL(blob);
-      setGeneratedImage(url);
+      const settled = await Promise.allSettled(promises);
+
+      // Combina resultados
+      const finalResults = settled.map((r, i) => {
+        if (r.status === "fulfilled") return r.value;
+        return {
+          modelId: MODELS[i].id,
+          label: MODELS[i].label,
+          status: "error",
+          error: (r.reason?.message || String(r.reason) || "Error").slice(
+            0,
+            180
+          ),
+        };
+      });
+
+      setResults(finalResults);
     } catch (err) {
-      console.error("Error al generar la imagen:", err);
-      let msg = "No pudimos crear la imagen. Probá de nuevo en unos segundos.";
-      const low = (err?.message || "").toLowerCase();
-      if (low.includes("unauthorized") || low.includes("token")) {
-        msg = "Token inválido o faltante. Verificá VITE_HF_TOKEN.";
-      } else if (low.includes("rate") || low.includes("too many")) {
-        msg = "Límite de uso alcanzado. Esperá un momento y reintenta.";
-      } else if (low.includes("abort")) {
-        msg = "Tiempo de espera agotado. Reintentá.";
-      }
-      setError(msg);
+      console.error("Error global al generar:", err);
+      setGlobalError("Ocurrió un error general al generar. Probá de nuevo.");
     } finally {
+      clearTimeout(timeout);
       setIsLoading(false);
     }
   };
 
   const canGenerate = Object.values(selections).every(Boolean);
-  const isGenerationComplete = generatedImage || error;
+  const hasAnyResult = results.length > 0;
 
   return (
     <div
@@ -128,7 +208,6 @@ export default function App() {
         fontFamily: "system-ui, sans-serif",
       }}
     >
-      {/* estilos utilitarios para fuente/contorno del Logo */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap');
         .font-brand { font-family: 'Fredoka One', cursive; }
@@ -138,92 +217,109 @@ export default function App() {
       <main className="w-full max-w-4xl p-4 sm:p-6 text-gray-800">
         <Logo />
 
-        {!isGenerationComplete ? (
-          <>
-            <HeadSelector
-              options={optionsData.heads}
-              selectedValue={selections.head}
-              onSelect={handleSelect}
-            />
+        {/* Sección de selección */}
+        <HeadSelector
+          options={optionsData.heads}
+          selectedValue={selections.head}
+          onSelect={handleSelect}
+        />
+        <BodySelector
+          options={optionsData.bodies}
+          selectedValue={selections.body}
+          onSelect={handleSelect}
+        />
+        <AccessorySelector
+          options={optionsData.accessories}
+          selectedValue={selections.accessory}
+          onSelect={handleSelect}
+        />
+        <PlaceSelector
+          options={optionsData.places}
+          selectedValue={selections.place}
+          onSelect={handleSelect}
+        />
 
-            <BodySelector
-              options={optionsData.bodies}
-              selectedValue={selections.body}
-              onSelect={handleSelect}
-            />
+        {/* Botón generar */}
+        <div className="text-center mt-6">
+          <button
+            onClick={handleGenerateImage}
+            disabled={!canGenerate || isLoading}
+            className={`
+              font-brand text-2xl sm:text-3xl text-white px-10 py-4 rounded-full shadow-lg
+              transform transition-all duration-300
+              ${
+                canGenerate
+                  ? "bg-green-500 hover:bg-green-600"
+                  : "bg-gray-400 cursor-not-allowed"
+              }
+              ${isLoading ? "animate-pulse" : ""}
+            `}
+          >
+            {isLoading ? "Creando..." : "¡Crear AnimalTris (Multi-modelo)!"}
+          </button>
+        </div>
 
-            <AccessorySelector
-              options={optionsData.accessories}
-              selectedValue={selections.accessory}
-              onSelect={handleSelect}
-            />
+        {/* Errores globales */}
+        {globalError && (
+          <div className="mt-4 text-center text-red-600 font-bold">
+            {globalError}
+          </div>
+        )}
 
-            <PlaceSelector
-              options={optionsData.places}
-              selectedValue={selections.place}
-              onSelect={handleSelect}
-            />
-
-            <div className="text-center mt-6">
-              <button
-                onClick={handleGenerateImage}
-                disabled={!canGenerate || isLoading}
-                className={`
-                  font-brand text-2xl sm:text-3xl text-white px-10 py-4 rounded-full shadow-lg
-                  transform transition-all duration-300
-                  ${
-                    canGenerate
-                      ? "bg-green-500 hover:bg-green-600"
-                      : "bg-gray-400 cursor-not-allowed"
-                  }
-                  ${isLoading ? "animate-pulse" : ""}
-                `}
+        {/* Grid de resultados por modelo */}
+        {hasAnyResult && (
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {results.map((r) => (
+              <div
+                key={r.modelId}
+                className="bg-white/80 backdrop-blur-sm p-4 rounded-2xl shadow-xl text-center flex flex-col items-center"
               >
-                {isLoading ? "Creando..." : "¡Crear AnimalTris!"}
-              </button>
-            </div>
-          </>
-        ) : (
-          <div className="w-full bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-xl text-center flex flex-col items-center">
-            {isLoading && (
-              <div className="flex flex-col items-center justify-center p-10">
-                <div className="w-16 h-16 border-8 border-dashed rounded-full animate-spin border-orange-500"></div>
-                <p className="font-bold text-xl text-orange-600 mt-6">
-                  Un momento, la magia está en proceso...
-                </p>
+                <div className="font-bold text-lg mb-2">{r.label}</div>
+
+                {r.status === "loading" && (
+                  <div className="flex flex-col items-center p-8">
+                    <div className="w-12 h-12 border-8 border-dashed rounded-full animate-spin border-orange-500"></div>
+                    <p className="mt-3 text-orange-600">Generando…</p>
+                  </div>
+                )}
+
+                {r.status === "error" && (
+                  <div className="p-6">
+                    <p className="text-4xl mb-2">😢</p>
+                    <p className="text-red-600 text-sm break-words">
+                      {r.error}
+                    </p>
+                  </div>
+                )}
+
+                {r.status === "done" && r.url && (
+                  <>
+                    <img
+                      src={r.url}
+                      alt={`Resultado ${r.label}`}
+                      className="rounded-xl shadow max-w-full h-auto border-4 border-white"
+                    />
+                    <div className="mt-2 text-sm text-gray-600">{r.ms} ms</div>
+                    <a
+                      href={r.url}
+                      download={`${r.label}.png`}
+                      className="mt-3 inline-block bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-full text-sm"
+                    >
+                      Descargar PNG
+                    </a>
+                  </>
+                )}
               </div>
-            )}
+            ))}
+          </div>
+        )}
 
-            {error && (
-              <div className="p-10">
-                <p className="text-5xl mb-4">😢</p>
-                <p className="text-red-600 font-bold text-xl">{error}</p>
-              </div>
-            )}
-
-            {generatedImage && (
-              <>
-                <h2 className="font-brand text-4xl text-orange-500 mb-4">
-                  ¡Aquí está tu creación!
-                </h2>
-                <img
-                  src={generatedImage}
-                  alt="Animal fantástico generado por IA"
-                  className="rounded-2xl shadow-2xl max-w-full h-auto border-4 border-white"
-                />
-                <a
-                  href={generatedImage}
-                  download="animaltris.png"
-                  className="mt-6 inline-block bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-full"
-                >
-                  Descargar PNG
-                </a>
-              </>
-            )}
-
+        {/* Reset */}
+        {(hasAnyResult || globalError) && (
+          <div className="text-center mt-6">
             <button
               onClick={handleReset}
-              className="mt-8 font-brand text-2xl text-white bg-blue-500 hover:bg-blue-600 px-10 py-4 rounded-full shadow-lg transform transition-all duration-300"
+              className="font-brand text-2xl text-white bg-blue-500 hover:bg-blue-600 px-10 py-3 rounded-full shadow-lg transition-all"
             >
               Crear Otro
             </button>
