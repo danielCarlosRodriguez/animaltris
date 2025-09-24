@@ -482,25 +482,15 @@ export default function Triangles() {
                     className="animate-pulse"
                   />
 
-                  {/* Background circle for angle text */}
-                  <circle
-                    cx={vertex.x + offsetX}
-                    cy={vertex.y + offsetY}
-                    r="16"
-                    fill={angleColors[index]}
-                    opacity="0.9"
-                    className="drop-shadow-md"
-                  />
-
-                  {/* Angle text */}
+                  {/* Angle text without background */}
                   <text
                     x={vertex.x + offsetX}
                     y={vertex.y + offsetY}
                     textAnchor="middle"
                     dominantBaseline="central"
-                    className="text-sm font-bold fill-white"
-                    fontSize="13"
-                    style={{ filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3))' }}
+                    className="text-sm font-bold"
+                    fontSize="14"
+                    fill={angleColors[index]}
                   >
                     {angle}°
                   </text>
