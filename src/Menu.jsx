@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import AntColony from "./components/ant-colony/AntColony";
 import AntColonyMobile from "./components/ant-colony-mobile/AntColonyMobile";
 import Animaltris from "./components/animaltirs/Animaltris";
+import Triangles from "./components/triangles/Triangles";
 
 export default function Menu() {
   const [isMobile, setIsMobile] = useState(false);
@@ -35,6 +36,12 @@ export default function Menu() {
           desc: "Optimizado táctil",
           emoji: "🐜",
         },
+        {
+          key: "triangles",
+          label: "Triángulos",
+          desc: "Formas geométricas",
+          emoji: "🔺",
+        },
       ];
     }
     return [
@@ -50,6 +57,12 @@ export default function Menu() {
         desc: "Vista completa",
         emoji: "🐜",
       },
+      {
+        key: "triangles",
+        label: "Triángulos",
+        desc: "Formas geométricas",
+        emoji: "🔺",
+      },
     ];
   }, [isMobile]);
 
@@ -58,6 +71,7 @@ export default function Menu() {
     if (selected === "animaltris") return <Animaltris />;
     if (selected === "ant-colony") return <AntColony />;
     if (selected === "ant-colony-mobile") return <AntColonyMobile />;
+    if (selected === "triangles") return <Triangles />;
     return null;
   }
 
