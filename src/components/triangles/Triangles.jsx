@@ -36,25 +36,26 @@ export default function Triangles() {
     ];
   };
 
-  // Calculate side lengths
+  // Calculate side lengths with proper labeling
   const getSideLengths = () => {
-    const [v0, v1, v2] = vertices;
-    const side1 = Math.sqrt(Math.pow(v1.x - v0.x, 2) + Math.pow(v1.y - v0.y, 2));
-    const side2 = Math.sqrt(Math.pow(v2.x - v1.x, 2) + Math.pow(v2.y - v1.y, 2));
-    const side3 = Math.sqrt(Math.pow(v0.x - v2.x, 2) + Math.pow(v0.y - v2.y, 2));
-    return [side1, side2, side3];
+    const [v0, v1, v2] = vertices; // A, B, C
+    const sideAB = Math.sqrt(Math.pow(v1.x - v0.x, 2) + Math.pow(v1.y - v0.y, 2)); // A to B
+    const sideBC = Math.sqrt(Math.pow(v2.x - v1.x, 2) + Math.pow(v2.y - v1.y, 2)); // B to C
+    const sideCA = Math.sqrt(Math.pow(v0.x - v2.x, 2) + Math.pow(v0.y - v2.y, 2)); // C to A
+    return { AB: sideAB, BC: sideBC, CA: sideCA };
   };
 
   // Classify triangle by sides
   const classifyBySides = () => {
-    const [side1, side2, side3] = getSideLengths();
+    const sides = getSideLengths();
+    const { AB, BC, CA } = sides;
     const tolerance = 5; // Tolerance for "equal" sides due to pixel precision
 
     const isEqual = (a, b) => Math.abs(a - b) < tolerance;
 
-    if (isEqual(side1, side2) && isEqual(side2, side3)) {
+    if (isEqual(AB, BC) && isEqual(BC, CA)) {
       return "Triángulo Equilátero";
-    } else if (isEqual(side1, side2) || isEqual(side2, side3) || isEqual(side1, side3)) {
+    } else if (isEqual(AB, BC) || isEqual(BC, CA) || isEqual(AB, CA)) {
       return "Triángulo Isósceles";
     } else {
       return "Triángulo Escaleno";
@@ -182,6 +183,31 @@ export default function Triangles() {
   };
 
 
+  // Calculate triangle area using cross product formula
+  const getArea = () => {
+    const [v0, v1, v2] = vertices;
+    const area = Math.abs((v0.x * (v1.y - v2.y) + v1.x * (v2.y - v0.y) + v2.x * (v0.y - v1.y)) / 2);
+    return Math.round(area);
+  };
+
+  // Calculate perimeter
+  const getPerimeter = () => {
+    const sides = getSideLengths();
+    const { AB, BC, CA } = sides;
+    const perimeter = AB + BC + CA;
+    return Math.round(perimeter * 10) / 10; // Round to 1 decimal
+  };
+
+  // Format side lengths for display
+  const getFormattedSides = () => {
+    const sides = getSideLengths();
+    return {
+      AB: Math.round(sides.AB * 10) / 10,
+      BC: Math.round(sides.BC * 10) / 10,
+      CA: Math.round(sides.CA * 10) / 10
+    };
+  };
+
   // Get explanation text
   const getExplanation = () => {
     const { primary, secondary } = triangleType;
@@ -302,7 +328,7 @@ export default function Triangles() {
             <div className="flex flex-wrap justify-center gap-2">
               <button
                 onClick={() => handleBadgeClick('equilatero')}
-                className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                className={`px-3 py-1 cursor-pointer text-sm rounded-full transition-colors ${
                   activeBadges.includes('equilatero')
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
@@ -312,7 +338,7 @@ export default function Triangles() {
               </button>
               <button
                 onClick={() => handleBadgeClick('isosceles')}
-                className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                className={`px-3 py-1 cursor-pointer text-sm rounded-full transition-colors ${
                   activeBadges.includes('isosceles')
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
@@ -322,7 +348,7 @@ export default function Triangles() {
               </button>
               <button
                 onClick={() => handleBadgeClick('escaleno')}
-                className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                className={`px-3 py-1 cursor-pointer text-sm rounded-full transition-colors ${
                   activeBadges.includes('escaleno')
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
@@ -334,7 +360,7 @@ export default function Triangles() {
             <div className="flex flex-wrap justify-center gap-2">
               <button
                 onClick={() => handleBadgeClick('rectangulo')}
-                className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                className={`px-3 py-1 cursor-pointer text-sm rounded-full transition-colors ${
                   activeBadges.includes('rectangulo')
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
@@ -344,7 +370,7 @@ export default function Triangles() {
               </button>
               <button
                 onClick={() => handleBadgeClick('obtusangulo')}
-                className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                className={`px-3 py-1 cursor-pointer text-sm rounded-full transition-colors ${
                   activeBadges.includes('obtusangulo')
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
@@ -354,7 +380,7 @@ export default function Triangles() {
               </button>
               <button
                 onClick={() => handleBadgeClick('acutangulo')}
-                className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                className={`px-3 py-1 cursor-pointer text-sm rounded-full transition-colors ${
                   activeBadges.includes('acutangulo')
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
@@ -491,17 +517,54 @@ export default function Triangles() {
             </div>
           </div>
 
-          {/* Angles panel */}
-          <div className="text-sm text-slate-600 dark:text-slate-400 max-w-md mx-auto">
-            <div className="space-y-1">
-              <h3 className="font-semibold text-slate-800 dark:text-slate-200">Ángulos:</h3>
-              {angles.map((angle, i) => (
-                <div key={i}>
-                  ∠{String.fromCharCode(65 + i)}: {angle}°
+          {/* Mathematical information panels */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto text-sm">
+            {/* Angles panel */}
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+              <h3 className="font-bold text-blue-800 dark:text-blue-300 mb-2">🔺 Ángulos</h3>
+              <div className="space-y-1 text-blue-700 dark:text-blue-200">
+                {angles.map((angle, i) => (
+                  <div key={i}>
+                    ∠{String.fromCharCode(65 + i)}: <span className="font-semibold">{angle}°</span>
+                  </div>
+                ))}
+                <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-700 text-xs">
+                  Suma total: <span className="font-bold">{angles.reduce((sum, angle) => sum + angle, 0)}°</span>
+                  <div className="text-blue-600 dark:text-blue-400">¡Siempre debe ser 180°!</div>
                 </div>
-              ))}
-              <div className="mt-2 text-xs text-slate-500">
-                Suma: {angles.reduce((sum, angle) => sum + angle, 0)}° (debe ser 180°)
+              </div>
+            </div>
+
+            {/* Sides panel */}
+            <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+              <h3 className="font-bold text-green-800 dark:text-green-300 mb-2">📏 Lados</h3>
+              <div className="space-y-1 text-green-700 dark:text-green-200">
+                {(() => {
+                  const sides = getFormattedSides();
+                  return [
+                    <div key="AB">Lado AB: <span className="font-semibold">{sides.AB}</span></div>,
+                    <div key="BC">Lado BC: <span className="font-semibold">{sides.BC}</span></div>,
+                    <div key="CA">Lado CA: <span className="font-semibold">{sides.CA}</span></div>
+                  ];
+                })()}
+                <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-700 text-xs">
+                  Perímetro: <span className="font-bold">{getPerimeter()}</span>
+                  <div className="text-green-600 dark:text-green-400">Suma de todos los lados</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Area panel */}
+            <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
+              <h3 className="font-bold text-purple-800 dark:text-purple-300 mb-2">📐 Área</h3>
+              <div className="text-purple-700 dark:text-purple-200">
+                <div className="text-2xl font-bold mb-2">{getArea()}</div>
+                <div className="text-xs text-purple-600 dark:text-purple-400">
+                  unidades cuadradas
+                </div>
+                <div className="mt-2 pt-2 border-t border-purple-200 dark:border-purple-700 text-xs">
+                  El área mide el espacio interior del triángulo
+                </div>
               </div>
             </div>
           </div>
