@@ -232,17 +232,26 @@ export default function Triangles() {
     return items;
   };
 
-  const handleMouseDown = (index, e) => {
+  // Get coordinates from mouse or touch event
+  const getEventCoordinates = (e) => {
+    if (e.touches && e.touches[0]) {
+      return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+    }
+    return { clientX: e.clientX, clientY: e.clientY };
+  };
+
+  const handleStart = (index, e) => {
     e.preventDefault();
     setDragging(index);
   };
 
-  const handleMouseMove = (e) => {
+  const handleMove = (e) => {
     if (dragging === null || !svgRef.current) return;
 
+    const coords = getEventCoordinates(e);
     const svgRect = svgRef.current.getBoundingClientRect();
-    const x = ((e.clientX - svgRect.left) / svgRect.width) * 600;
-    const y = ((e.clientY - svgRect.top) / svgRect.height) * 500;
+    const x = ((coords.clientX - svgRect.left) / svgRect.width) * 600;
+    const y = ((coords.clientY - svgRect.top) / svgRect.height) * 500;
 
     // Keep vertices within bounds with more margin
     const boundedX = Math.max(30, Math.min(570, x));
@@ -260,7 +269,7 @@ export default function Triangles() {
     // We'll do this in a useEffect to avoid calling it on every mouse move
   };
 
-  const handleMouseUp = () => {
+  const handleEnd = () => {
     setDragging(null);
   };
 
@@ -311,9 +320,11 @@ export default function Triangles() {
   return (
     <div
       className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 text-slate-900 dark:text-slate-100 p-6"
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      onMouseMove={handleMove}
+      onMouseUp={handleEnd}
+      onMouseLeave={handleEnd}
+      onTouchMove={handleMove}
+      onTouchEnd={handleEnd}
     >
       <div className="mx-auto w-full max-w-5xl">
         <div className="mb-6 text-center">
@@ -402,10 +413,17 @@ export default function Triangles() {
             style={{ cursor: dragging !== null ? 'grabbing' : 'default' }}
           >
             <defs>
-              <linearGradient id="triangleGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#60a5fa" />
-                <stop offset="100%" stopColor="#3b82f6" />
+              <linearGradient id="triangleGradient" x1="0%" y1="0%" x2="100%" y2="100%" gradientTransform="rotate(66)">
+                <stop offset="0%" stopColor="rgba(63,94,251,1)" />
+                <stop offset="100%" stopColor="rgba(252,70,107,1)" />
               </linearGradient>
+              <filter id="triangleGlow">
+                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                <feMerge>
+                  <feMergeNode in="coloredBlur"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
             </defs>
 
             {/* Grid lines for better reference */}
@@ -416,20 +434,23 @@ export default function Triangles() {
             </defs>
             <rect width="100%" height="100%" fill="url(#grid)" />
 
-            {/* Triangle */}
+            {/* Triangle with smooth animations */}
             <polygon
               points={pointsString}
               fill="url(#triangleGradient)"
               stroke="#3b82f6"
               strokeWidth="3"
               opacity="0.7"
+              className="transition-all duration-300 ease-out"
+              style={{
+                filter: dragging !== null ? 'brightness(1.1) drop-shadow(0 4px 8px rgba(59, 130, 246, 0.3))' : 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1))'
+              }}
             />
 
-            {/* Angle labels */}
+            {/* Angle labels with improved styling */}
             {vertices.map((vertex, index) => {
               const angle = angles[index];
-              // Calculate label position (offset from vertex)
-              const offsetDistance = 25;
+              const offsetDistance = 30;
               let offsetX = 0;
               let offsetY = 0;
 
@@ -444,26 +465,42 @@ export default function Triangles() {
                 offsetY = offsetDistance;
               }
 
+              const angleColors = ['rgba(63,94,251,1)', 'rgba(158,84,201,1)', 'rgba(252,70,107,1)']; // Match gradient colors
+
               return (
-                <g key={`angle-${index}`}>
+                <g key={`angle-${index}`} className="transition-all duration-300 ease-out">
                   {/* Angle arc visualization */}
                   <circle
                     cx={vertex.x}
                     cy={vertex.y}
-                    r="15"
+                    r="18"
                     fill="none"
-                    stroke="#8b5cf6"
-                    strokeWidth="1"
-                    opacity="0.4"
+                    stroke={angleColors[index]}
+                    strokeWidth="2"
+                    opacity="0.6"
+                    strokeDasharray="2,2"
+                    className="animate-pulse"
                   />
+
+                  {/* Background circle for angle text */}
+                  <circle
+                    cx={vertex.x + offsetX}
+                    cy={vertex.y + offsetY}
+                    r="16"
+                    fill={angleColors[index]}
+                    opacity="0.9"
+                    className="drop-shadow-md"
+                  />
+
                   {/* Angle text */}
                   <text
                     x={vertex.x + offsetX}
                     y={vertex.y + offsetY}
                     textAnchor="middle"
                     dominantBaseline="central"
-                    className="text-sm font-semibold fill-purple-700 dark:fill-purple-300"
-                    fontSize="14"
+                    className="text-sm font-bold fill-white"
+                    fontSize="13"
+                    style={{ filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3))' }}
                   >
                     {angle}°
                   </text>
@@ -471,34 +508,58 @@ export default function Triangles() {
               );
             })}
 
-            {/* Draggable vertices */}
-            {vertices.map((vertex, index) => (
-              <g key={`vertex-${index}`}>
-                {/* Vertex circle */}
-                <circle
-                  cx={vertex.x}
-                  cy={vertex.y}
-                  r="10"
-                  fill="#ef4444"
-                  stroke="#ffffff"
-                  strokeWidth="3"
-                  className="cursor-grab hover:fill-red-500 transition-colors drop-shadow-sm"
-                  style={{ cursor: dragging === index ? 'grabbing' : 'grab' }}
-                  onMouseDown={(e) => handleMouseDown(index, e)}
-                />
-                {/* Vertex label */}
-                <text
-                  x={vertex.x}
-                  y={vertex.y}
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  className="text-xs font-bold fill-white pointer-events-none"
-                  fontSize="10"
-                >
-                  {String.fromCharCode(65 + index)}
-                </text>
-              </g>
-            ))}
+            {/* Draggable vertices with animations */}
+            {vertices.map((vertex, index) => {
+              const isBeingDragged = dragging === index;
+              const vertexColors = ['rgba(63,94,251,1)', 'rgba(158,84,201,1)', 'rgba(252,70,107,1)']; // Match gradient colors
+
+              return (
+                <g key={`vertex-${index}`} className="transition-all duration-200 ease-out">
+                  {/* Glow effect when dragging */}
+                  {isBeingDragged && (
+                    <circle
+                      cx={vertex.x}
+                      cy={vertex.y}
+                      r="18"
+                      fill={vertexColors[index]}
+                      opacity="0.3"
+                      className="animate-pulse"
+                    />
+                  )}
+
+                  {/* Vertex circle */}
+                  <circle
+                    cx={vertex.x}
+                    cy={vertex.y}
+                    r={isBeingDragged ? "14" : "12"}
+                    fill={vertexColors[index]}
+                    stroke="#ffffff"
+                    strokeWidth="3"
+                    className="cursor-grab transition-all duration-200 ease-out drop-shadow-lg hover:brightness-110"
+                    style={{
+                      cursor: isBeingDragged ? 'grabbing' : 'grab',
+                      filter: isBeingDragged ? 'brightness(1.2) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3))' : 'drop-shadow(0 2px 6px rgba(0, 0, 0, 0.2))',
+                      transformOrigin: `${vertex.x}px ${vertex.y}px`
+                    }}
+                    onMouseDown={(e) => handleStart(index, e)}
+                    onTouchStart={(e) => handleStart(index, e)}
+                  />
+
+                  {/* Vertex label */}
+                  <text
+                    x={vertex.x}
+                    y={vertex.y}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    className="text-xs font-bold fill-white pointer-events-none transition-all duration-200"
+                    fontSize={isBeingDragged ? "12" : "10"}
+                    style={{ filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5))' }}
+                  >
+                    {String.fromCharCode(65 + index)}
+                  </text>
+                </g>
+              );
+            })}
           </svg>
         </div>
 
