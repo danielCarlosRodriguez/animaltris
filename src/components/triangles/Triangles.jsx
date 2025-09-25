@@ -9,6 +9,7 @@ export default function Triangles() {
 
   const [dragging, setDragging] = useState(null);
   const [activeBadges, setActiveBadges] = useState([]);
+  const [lastManualBadges, setLastManualBadges] = useState(null);
   const svgRef = useRef(null);
 
   // Calculate angle at a vertex given three points
@@ -93,12 +94,12 @@ export default function Triangles() {
 
   // Triangle presets for badges
   const trianglePresets = {
-    equilatero: [{ x: 300, y: 80 }, { x: 200, y: 300 }, { x: 400, y: 300 }],
-    isosceles: [{ x: 300, y: 100 }, { x: 220, y: 350 }, { x: 380, y: 350 }],
+    equilatero: [{ x: 300, y: 100 }, { x: 213, y: 250 }, { x: 387, y: 250 }], // Perfect equilateral triangle
+    isosceles: [{ x: 300, y: 100 }, { x: 240, y: 320 }, { x: 360, y: 320 }], // Perfect isosceles
     escaleno: [{ x: 280, y: 120 }, { x: 150, y: 350 }, { x: 450, y: 320 }],
-    rectangulo: [{ x: 200, y: 100 }, { x: 200, y: 300 }, { x: 400, y: 300 }],
-    obtusangulo: [{ x: 300, y: 250 }, { x: 150, y: 150 }, { x: 450, y: 350 }],
-    acutangulo: [{ x: 300, y: 100 }, { x: 180, y: 320 }, { x: 420, y: 320 }]
+    rectangulo: [{ x: 300, y: 100 }, { x: 300, y: 300 }, { x: 450, y: 300 }], // Isosceles rectangle
+    obtusangulo: [{ x: 180, y: 120 }, { x: 450, y: 300 }, { x: 120, y: 300 }], // Escaleno obtuse
+    acutangulo: [{ x: 300, y: 100 }, { x: 240, y: 320 }, { x: 360, y: 320 }] // Isosceles acute
   };
 
   // Check if badges can be combined based on mathematical rules
@@ -116,70 +117,113 @@ export default function Triangles() {
     return validCombinations[badge1]?.includes(badge2) || validCombinations[badge2]?.includes(badge1);
   };
 
-  // Set triangle to specific type or toggle badge
+  // Set triangle to specific type with smart transitions
   const handleBadgeClick = (type) => {
+    console.log('Badge clicked:', type, 'Current badges:', activeBadges);
     const currentBadges = [...activeBadges];
     const badgeIndex = currentBadges.indexOf(type);
+
+    const sideTypes = ['equilatero', 'isosceles', 'escaleno'];
+    const angleTypes = ['rectangulo', 'obtusangulo', 'acutangulo'];
+
+    const isClickedSideType = sideTypes.includes(type);
+    const isClickedAngleType = angleTypes.includes(type);
 
     if (badgeIndex >= 0) {
       // Badge is already active, remove it
       currentBadges.splice(badgeIndex, 1);
     } else {
-      // Badge is not active, try to add it
-      if (currentBadges.length === 0) {
-        // No active badges, just add this one
-        currentBadges.push(type);
-      } else if (currentBadges.length === 1) {
-        // One active badge, check if they can be combined
-        if (canCombine(currentBadges[0], type)) {
-          currentBadges.push(type);
-        } else {
-          // Replace the current badge
-          currentBadges[0] = type;
+      // Badge is not active, need to add it with smart transitions
+      if (isClickedSideType) {
+        // Replace any existing side type
+        const existingSideIndex = currentBadges.findIndex(badge => sideTypes.includes(badge));
+        if (existingSideIndex >= 0) {
+          currentBadges.splice(existingSideIndex, 1);
         }
-      } else {
-        // Two badges already active, replace with this one
-        currentBadges.length = 0;
+
+        // Handle smart angle type transitions based on geometric rules
+        const existingAngleType = currentBadges.find(badge => angleTypes.includes(badge));
+
+        if (type === 'equilatero') {
+          // Equilátero solo puede ser acutángulo
+          if (existingAngleType && existingAngleType !== 'acutangulo') {
+            // Si hay rectángulo u obtusángulo, cambiar a acutángulo automáticamente
+            const angleIndex = currentBadges.indexOf(existingAngleType);
+            currentBadges.splice(angleIndex, 1);
+            currentBadges.push('acutangulo');
+          } else if (!existingAngleType) {
+            // Si no hay ángulo, agregar acutángulo automáticamente
+            currentBadges.push('acutangulo');
+          }
+        }
+
+        currentBadges.push(type);
+      } else if (isClickedAngleType) {
+        // Replace any existing angle type
+        const existingAngleIndex = currentBadges.findIndex(badge => angleTypes.includes(badge));
+        if (existingAngleIndex >= 0) {
+          currentBadges.splice(existingAngleIndex, 1);
+        }
+
+        // Handle smart side type transitions based on geometric rules
+        const existingSideType = currentBadges.find(badge => sideTypes.includes(badge));
+
+        if ((type === 'rectangulo' || type === 'obtusangulo') && existingSideType === 'equilatero') {
+          // Si hay equilátero y se presiona rectángulo u obtusángulo, cambiar a isósceles
+          const sideIndex = currentBadges.indexOf('equilatero');
+          currentBadges.splice(sideIndex, 1);
+          currentBadges.push('isosceles');
+        }
+
         currentBadges.push(type);
       }
     }
 
+    console.log('Final badges:', currentBadges);
     setActiveBadges(currentBadges);
+    setLastManualBadges(currentBadges.slice()); // Store copy of manual selection
 
     // If we have exactly one badge active, set the triangle shape
     if (currentBadges.length === 1) {
+      console.log('Setting triangle shape for:', currentBadges[0]);
       setVertices(trianglePresets[currentBadges[0]]);
     }
 
     // If we have two compatible badges, try to create a combined shape
     if (currentBadges.length === 2) {
-      const sideType = ['equilatero', 'isosceles', 'escaleno'].find(t => currentBadges.includes(t));
-      const angleType = ['rectangulo', 'obtusangulo', 'acutangulo'].find(t => currentBadges.includes(t));
+      const sideType = sideTypes.find(t => currentBadges.includes(t));
+      const angleType = angleTypes.find(t => currentBadges.includes(t));
 
       // Create combined shapes based on valid combinations
       if (sideType === 'equilatero' && angleType === 'acutangulo') {
-        // Equilátero acutángulo (triángulo equilátero perfecto)
-        setVertices([{ x: 300, y: 80 }, { x: 200, y: 300 }, { x: 400, y: 300 }]);
+        setVertices([{ x: 300, y: 100 }, { x: 213, y: 250 }, { x: 387, y: 250 }]);
       } else if (sideType === 'isosceles' && angleType === 'rectangulo') {
-        // Isósceles rectángulo
-        setVertices([{ x: 200, y: 100 }, { x: 200, y: 300 }, { x: 380, y: 300 }]);
+        setVertices([{ x: 300, y: 100 }, { x: 300, y: 300 }, { x: 450, y: 300 }]); // Isósceles rectángulo (90° en vértice inferior izquierdo)
+      } else if (sideType === 'isosceles' && angleType === 'obtusangulo') {
+        setVertices([{ x: 300, y: 200 }, { x: 180, y: 300 }, { x: 420, y: 300 }]); // Isósceles obtusángulo (>90° en vértice superior)
       } else if (sideType === 'isosceles' && angleType === 'acutangulo') {
-        // Isósceles acutángulo
-        setVertices([{ x: 300, y: 100 }, { x: 220, y: 350 }, { x: 380, y: 350 }]);
+        setVertices([{ x: 300, y: 100 }, { x: 240, y: 320 }, { x: 360, y: 320 }]); // Isósceles acutángulo
       } else if (sideType === 'escaleno' && angleType === 'rectangulo') {
-        // Escaleno rectángulo
         setVertices([{ x: 200, y: 100 }, { x: 200, y: 300 }, { x: 450, y: 320 }]);
       } else if (sideType === 'escaleno' && angleType === 'obtusangulo') {
-        // Escaleno obtusángulo
-        setVertices([{ x: 300, y: 250 }, { x: 150, y: 150 }, { x: 450, y: 350 }]);
+        setVertices([{ x: 180, y: 120 }, { x: 450, y: 300 }, { x: 120, y: 300 }]); // Escaleno obtusángulo
       } else if (sideType === 'escaleno' && angleType === 'acutangulo') {
-        // Escaleno acutángulo
         setVertices([{ x: 280, y: 120 }, { x: 150, y: 350 }, { x: 450, y: 320 }]);
       } else {
-        // Default to the first badge's shape if combination not defined
         setVertices(trianglePresets[currentBadges[0]]);
       }
     }
+  };
+
+  // Check if a badge should be disabled based on current selection
+  const isBadgeDisabled = (badgeType) => {
+    const currentSideType = activeBadges.find(badge => ['equilatero', 'isosceles', 'escaleno'].includes(badge));
+
+    if (currentSideType === 'equilatero') {
+      return badgeType === 'rectangulo' || badgeType === 'obtusangulo';
+    }
+
+    return false;
   };
 
 
@@ -210,7 +254,18 @@ export default function Triangles() {
 
   // Get explanation text
   const getExplanation = () => {
-    const { primary, secondary } = triangleType;
+    // Generate explanation based on active badges instead of geometric calculations
+    const sideType = activeBadges.find(badge => ['equilatero', 'isosceles', 'escaleno'].includes(badge));
+    const angleType = activeBadges.find(badge => ['rectangulo', 'obtusangulo', 'acutangulo'].includes(badge));
+
+    const badgeToType = {
+      'equilatero': 'Triángulo Equilátero',
+      'isosceles': 'Triángulo Isósceles',
+      'escaleno': 'Triángulo Escaleno',
+      'rectangulo': 'Triángulo Rectángulo',
+      'obtusangulo': 'Triángulo Obtusángulo',
+      'acutangulo': 'Triángulo Acutángulo'
+    };
 
     const explanations = {
       "Triángulo Equilátero": "tiene los tres lados de igual longitud y todos sus ángulos miden 60°.",
@@ -222,11 +277,19 @@ export default function Triangles() {
     };
 
     const items = [];
-    if (primary && explanations[primary]) {
-      items.push({ name: primary, explanation: explanations[primary] });
+
+    if (sideType && badgeToType[sideType] && explanations[badgeToType[sideType]]) {
+      items.push({
+        name: badgeToType[sideType],
+        explanation: explanations[badgeToType[sideType]]
+      });
     }
-    if (secondary && explanations[secondary]) {
-      items.push({ name: secondary, explanation: explanations[secondary] });
+
+    if (angleType && badgeToType[angleType] && explanations[badgeToType[angleType]]) {
+      items.push({
+        name: badgeToType[angleType],
+        explanation: explanations[badgeToType[angleType]]
+      });
     }
 
     return items;
@@ -270,7 +333,11 @@ export default function Triangles() {
   };
 
   const handleEnd = () => {
-    setDragging(null);
+    if (dragging) {
+      setDragging(null);
+      // Clear manual selection after dragging to allow auto-updates
+      setTimeout(() => setLastManualBadges(null), 500);
+    }
   };
 
   const pointsString = vertices.map(v => `${v.x},${v.y}`).join(' ');
@@ -278,10 +345,10 @@ export default function Triangles() {
   const triangleType = getTriangleType();
   const explanation = getExplanation();
 
-  // Auto-update badges when vertices change (but not when dragging from badge clicks)
+  // Auto-update badges when vertices change (preserve side types, only update angle types)
   useEffect(() => {
-    // Only auto-update if no dragging is happening
-    if (dragging === null) {
+    // Only auto-update if no dragging is happening and no recent manual selection
+    if (dragging === null && !lastManualBadges) {
       const { primary, secondary } = triangleType;
       const newBadges = [];
 
@@ -298,24 +365,38 @@ export default function Triangles() {
         "Triángulo Acutángulo": "acutangulo"
       };
 
-      // Add corresponding badges
-      if (sideTypeToBadge[primary]) {
-        newBadges.push(sideTypeToBadge[primary]);
+      // Get current side and angle types
+      const currentSideType = activeBadges.find(badge => ['equilatero', 'isosceles', 'escaleno'].includes(badge));
+      const currentAngleType = activeBadges.find(badge => ['rectangulo', 'obtusangulo', 'acutangulo'].includes(badge));
+
+      // If there's a manual side type, preserve it, otherwise use calculated
+      const finalSideType = currentSideType || sideTypeToBadge[primary];
+      const finalAngleType = angleTypeToBadge[secondary];
+
+      if (finalSideType) {
+        newBadges.push(finalSideType);
       }
-      if (angleTypeToBadge[secondary]) {
-        newBadges.push(angleTypeToBadge[secondary]);
+      if (finalAngleType) {
+        newBadges.push(finalAngleType);
       }
 
-      // Only update if the combination is valid
-      if (newBadges.length === 2 && canCombine(newBadges[0], newBadges[1])) {
-        setActiveBadges(newBadges);
-      } else if (newBadges.length === 1) {
-        setActiveBadges(newBadges);
-      } else if (newBadges.length === 0) {
-        setActiveBadges([]);
+      // Only update if the combination is valid and different from current
+      const badgesMatch = activeBadges.length === newBadges.length &&
+        activeBadges.every(badge => newBadges.includes(badge));
+
+      if (!badgesMatch) {
+        console.log('Auto-updating badges from', activeBadges, 'to', newBadges);
+
+        if (newBadges.length === 2 && canCombine(newBadges[0], newBadges[1])) {
+          setActiveBadges(newBadges);
+        } else if (newBadges.length === 1) {
+          setActiveBadges(newBadges);
+        } else if (newBadges.length === 0) {
+          setActiveBadges([]);
+        }
       }
     }
-  }, [vertices, dragging, triangleType]);
+  }, [vertices, dragging]);
 
   return (
     <div
@@ -370,21 +451,27 @@ export default function Triangles() {
             </div>
             <div className="flex flex-wrap justify-center gap-2">
               <button
-                onClick={() => handleBadgeClick('rectangulo')}
-                className={`px-3 py-1 cursor-pointer text-sm rounded-full transition-colors ${
-                  activeBadges.includes('rectangulo')
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                onClick={() => !isBadgeDisabled('rectangulo') && handleBadgeClick('rectangulo')}
+                disabled={isBadgeDisabled('rectangulo')}
+                className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                  isBadgeDisabled('rectangulo')
+                    ? 'bg-red-100 dark:bg-red-900/30 text-red-400 dark:text-red-500 cursor-not-allowed opacity-60'
+                    : activeBadges.includes('rectangulo')
+                    ? 'bg-blue-600 text-white cursor-pointer'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer'
                 }`}
               >
                 Rectángulo
               </button>
               <button
-                onClick={() => handleBadgeClick('obtusangulo')}
-                className={`px-3 py-1 cursor-pointer text-sm rounded-full transition-colors ${
-                  activeBadges.includes('obtusangulo')
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                onClick={() => !isBadgeDisabled('obtusangulo') && handleBadgeClick('obtusangulo')}
+                disabled={isBadgeDisabled('obtusangulo')}
+                className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                  isBadgeDisabled('obtusangulo')
+                    ? 'bg-red-100 dark:bg-red-900/30 text-red-400 dark:text-red-500 cursor-not-allowed opacity-60'
+                    : activeBadges.includes('obtusangulo')
+                    ? 'bg-blue-600 text-white cursor-pointer'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer'
                 }`}
               >
                 Obtusángulo
