@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function Triangles() {
+  const navigate = useNavigate();
   const [vertices, setVertices] = useState([
     { x: 300, y: 100 },   // Top vertex
     { x: 150, y: 350 },   // Bottom left
@@ -94,7 +96,7 @@ export default function Triangles() {
 
   // Triangle presets for badges
   const trianglePresets = {
-    equilatero: [{ x: 300, y: 100 }, { x: 213, y: 250 }, { x: 387, y: 250 }], // Perfect equilateral triangle
+    equilatero: [{ x: 300, y: 100 }, { x: 213.4, y: 250 }, { x: 386.6, y: 250 }], // Perfect equilateral triangle
     isosceles: [{ x: 300, y: 100 }, { x: 240, y: 320 }, { x: 360, y: 320 }], // Perfect isosceles
     escaleno: [{ x: 280, y: 120 }, { x: 150, y: 350 }, { x: 450, y: 320 }],
     rectangulo: [{ x: 300, y: 100 }, { x: 300, y: 300 }, { x: 450, y: 300 }], // Isosceles rectangle
@@ -196,7 +198,7 @@ export default function Triangles() {
 
       // Create combined shapes based on valid combinations
       if (sideType === 'equilatero' && angleType === 'acutangulo') {
-        setVertices([{ x: 300, y: 100 }, { x: 213, y: 250 }, { x: 387, y: 250 }]);
+        setVertices([{ x: 300, y: 100 }, { x: 213.4, y: 250 }, { x: 386.6, y: 250 }]);
       } else if (sideType === 'isosceles' && angleType === 'rectangulo') {
         setVertices([{ x: 300, y: 100 }, { x: 300, y: 300 }, { x: 450, y: 300 }]); // Isósceles rectángulo (90° en vértice inferior izquierdo)
       } else if (sideType === 'isosceles' && angleType === 'obtusangulo') {
@@ -204,9 +206,9 @@ export default function Triangles() {
       } else if (sideType === 'isosceles' && angleType === 'acutangulo') {
         setVertices([{ x: 300, y: 100 }, { x: 240, y: 320 }, { x: 360, y: 320 }]); // Isósceles acutángulo
       } else if (sideType === 'escaleno' && angleType === 'rectangulo') {
-        setVertices([{ x: 200, y: 100 }, { x: 200, y: 300 }, { x: 450, y: 320 }]);
+        setVertices([{ x: 200, y: 100 }, { x: 200, y: 300 }, { x: 420, y: 300 }]); // Escaleno rectángulo (90° en vértice inferior izquierdo)
       } else if (sideType === 'escaleno' && angleType === 'obtusangulo') {
-        setVertices([{ x: 180, y: 120 }, { x: 450, y: 300 }, { x: 120, y: 300 }]); // Escaleno obtusángulo
+        setVertices([{ x: 300, y: 200 }, { x: 150, y: 100 }, { x: 450, y: 120 }]); // Escaleno obtusángulo (>90° en vértice A)
       } else if (sideType === 'escaleno' && angleType === 'acutangulo') {
         setVertices([{ x: 280, y: 120 }, { x: 150, y: 350 }, { x: 450, y: 320 }]);
       } else {
@@ -239,16 +241,16 @@ export default function Triangles() {
     const sides = getSideLengths();
     const { AB, BC, CA } = sides;
     const perimeter = AB + BC + CA;
-    return Math.round(perimeter * 10) / 10; // Round to 1 decimal
+    return Math.round(perimeter); // Round to integer
   };
 
   // Format side lengths for display
   const getFormattedSides = () => {
     const sides = getSideLengths();
     return {
-      AB: Math.round(sides.AB * 10) / 10,
-      BC: Math.round(sides.BC * 10) / 10,
-      CA: Math.round(sides.CA * 10) / 10
+      AB: Math.round(sides.AB),
+      BC: Math.round(sides.BC),
+      CA: Math.round(sides.CA)
     };
   };
 
@@ -333,12 +335,65 @@ export default function Triangles() {
   };
 
   const handleEnd = () => {
-    if (dragging) {
+    if (dragging !== null) {
       setDragging(null);
       // Clear manual selection after dragging to allow auto-updates
-      setTimeout(() => setLastManualBadges(null), 500);
+      setLastManualBadges(null);
+
+      // Immediately update badges based on the current triangle shape
+      const { primary, secondary } = getTriangleType();
+
+      const sideTypeToBadge = {
+        "Triángulo Equilátero": "equilatero",
+        "Triángulo Isósceles": "isosceles",
+        "Triángulo Escaleno": "escaleno"
+      };
+
+      const angleTypeToBadge = {
+        "Triángulo Rectángulo": "rectangulo",
+        "Triángulo Obtusángulo": "obtusangulo",
+        "Triángulo Acutángulo": "acutangulo"
+      };
+
+      const newBadges = [];
+      const finalSideType = sideTypeToBadge[primary];
+      const finalAngleType = angleTypeToBadge[secondary];
+
+      if (finalSideType) {
+        newBadges.push(finalSideType);
+      }
+      if (finalAngleType) {
+        newBadges.push(finalAngleType);
+      }
+
+      // Update badges if they're valid
+      if (newBadges.length === 2 && canCombine(newBadges[0], newBadges[1])) {
+        setActiveBadges(newBadges);
+      } else if (newBadges.length === 1) {
+        setActiveBadges(newBadges);
+      }
     }
   };
+
+  // Add global event listeners for mouse events to ensure dragging works properly
+  useEffect(() => {
+    const handleGlobalMouseMove = (e) => handleMove(e);
+    const handleGlobalMouseUp = () => handleEnd();
+
+    if (dragging !== null) {
+      window.addEventListener('mousemove', handleGlobalMouseMove);
+      window.addEventListener('mouseup', handleGlobalMouseUp);
+      window.addEventListener('touchmove', handleGlobalMouseMove);
+      window.addEventListener('touchend', handleGlobalMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+      window.removeEventListener('touchmove', handleGlobalMouseMove);
+      window.removeEventListener('touchend', handleGlobalMouseUp);
+    };
+  }, [dragging]);
 
   const pointsString = vertices.map(v => `${v.x},${v.y}`).join(' ');
   const angles = getAngles();
@@ -534,6 +589,48 @@ export default function Triangles() {
               }}
             />
 
+            {/* Side length labels */}
+            {(() => {
+              const sides = getFormattedSides();
+              const sideLabels = [
+                { side: 'AB', length: sides.AB, start: vertices[0], end: vertices[1] },
+                { side: 'BC', length: sides.BC, start: vertices[1], end: vertices[2] },
+                { side: 'CA', length: sides.CA, start: vertices[2], end: vertices[0] }
+              ];
+
+              return sideLabels.map((sideInfo, index) => {
+                const midX = (sideInfo.start.x + sideInfo.end.x) / 2;
+                const midY = (sideInfo.start.y + sideInfo.end.y) / 2;
+
+                // Calculate perpendicular offset for label positioning
+                const dx = sideInfo.end.x - sideInfo.start.x;
+                const dy = sideInfo.end.y - sideInfo.start.y;
+                const length = Math.sqrt(dx * dx + dy * dy);
+                const perpX = -dy / length * 25; // Increased perpendicular offset
+                const perpY = dx / length * 25;
+
+                const sideColors = ['rgba(34,197,94,1)', 'rgba(34,197,94,1)', 'rgba(34,197,94,1)']; // Green color for sides
+
+                return (
+                  <g key={`side-${index}`} className="transition-all duration-300 ease-out">
+                    {/* Side length text without background */}
+                    <text
+                      x={midX + perpX}
+                      y={midY + perpY}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      className="text-sm font-bold"
+                      fontSize="13"
+                      fill={sideColors[index]}
+                      style={{ filter: 'drop-shadow(0 1px 2px rgba(255, 255, 255, 0.8))' }}
+                    >
+                      {sideInfo.length}
+                    </text>
+                  </g>
+                );
+              });
+            })()}
+
             {/* Angle labels with improved styling */}
             {vertices.map((vertex, index) => {
               const angle = angles[index];
@@ -652,6 +749,17 @@ export default function Triangles() {
                   <strong>{item.name}:</strong> {item.explanation}
                 </p>
               ))}
+              {/* Special message for Equilátero + Acutángulo combination */}
+              {activeBadges.includes('equilatero') && activeBadges.includes('acutangulo') && (
+                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
+                  <p className="text-blue-800 dark:text-blue-200 font-medium text-center">
+                    💡 <strong>Un Triángulo Equilátero solo puede ser Acutángulo</strong>
+                  </p>
+                  <p className="text-blue-700 dark:text-blue-300 text-xs text-center mt-1">
+                    Esto se debe a que todos sus ángulos miden exactamente 60°
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -723,7 +831,7 @@ export default function Triangles() {
             </button>
 
             <button
-              onClick={() => window.location.reload()}
+              onClick={() => navigate('/')}
               className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
             >
               Volver al Menú

@@ -1,13 +1,10 @@
 // src/Menu.jsx
 import { useEffect, useMemo, useState } from "react";
-import AntColony from "./components/ant-colony/AntColony";
-import AntColonyMobile from "./components/ant-colony-mobile/AntColonyMobile";
-import Animaltris from "./components/animaltirs/Animaltris";
-import Triangles from "./components/triangles/Triangles";
+import { useNavigate } from "react-router-dom";
 
 export default function Menu() {
   const [isMobile, setIsMobile] = useState(false);
-  const [selected, setSelected] = useState(null);
+  const navigate = useNavigate();
 
   // Detección simple de mobile vs desktop
   useEffect(() => {
@@ -29,18 +26,21 @@ export default function Menu() {
           label: "Animaltris",
           desc: "Juego móvil",
           emoji: "🎮",
+          route: "/animaltris",
         },
         {
           key: "ant-colony-mobile",
           label: "Ant Colony (Mobile)",
           desc: "Optimizado táctil",
           emoji: "🐜",
+          route: "/ant-colony-mobile",
         },
         {
           key: "triangles",
           label: "Triángulos",
           desc: "Formas geométricas",
           emoji: "🔺",
+          route: "/triangulos",
         },
       ];
     }
@@ -50,32 +50,25 @@ export default function Menu() {
         label: "Animaltris",
         desc: "Juego de piezas",
         emoji: "🎮",
+        route: "/animaltris",
       },
       {
         key: "ant-colony",
         label: "Ant Colony (Desktop)",
         desc: "Vista completa",
         emoji: "🐜",
+        route: "/ant-colony",
       },
       {
         key: "triangles",
         label: "Triángulos",
         desc: "Formas geométricas",
         emoji: "🔺",
+        route: "/triangulos",
       },
     ];
   }, [isMobile]);
 
-  // Render del seleccionado
-  if (selected) {
-    if (selected === "animaltris") return <Animaltris />;
-    if (selected === "ant-colony") return <AntColony />;
-    if (selected === "ant-colony-mobile") return <AntColonyMobile />;
-    if (selected === "triangles") return <Triangles />;
-    return null;
-  }
-
-  // Menú (solo botones)
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 text-slate-900 dark:text-slate-100 p-6">
       <div className="mx-auto w-full max-w-5xl">
@@ -84,7 +77,7 @@ export default function Menu() {
           {items.map((item) => (
             <button
               key={item.key}
-              onClick={() => setSelected(item.key)}
+              onClick={() => navigate(item.route)}
               className="group w-full rounded-2xl border border-slate-200 dark:border-slate-800 p-5 text-left bg-white/70 dark:bg-slate-900/60 backdrop-blur
                          hover:shadow-md hover:bg-slate-50 dark:hover:bg-slate-900 transition focus:outline-none focus:ring-2 focus:ring-blue-400/40"
             >
